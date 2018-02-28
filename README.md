@@ -4,7 +4,7 @@ In this Experiment, I found a way to build a MIRAI botnet.
 An installation guide has been given by Mirai's author:
 https://github.com/jgamblin/Mirai-Source-Code/blob/master/ForumPost.md
 
-# *Environment
+# *Environment*
 1. Fedora27 x64 workstaion with over 16G MEM.
 2. Network capabilities.
 3. VMware-station or vbox.
