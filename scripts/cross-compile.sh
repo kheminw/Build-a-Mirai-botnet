@@ -5,19 +5,6 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
-echo -n "Install mysql-server and mysql-client (y/n)? "
-old_stty_cfg=$(stty -g)
-stty raw -echo
-answer=$( while ! head -c 1 | grep -i '[ny]' ;do true ;done )
-stty $old_stty_cfg
-if echo "$answer" | grep -iq "^y" ;then
-    echo "Installing mysql..."
-    apt-get install -y mysql-server mysql-client
-fi
-
-echo -n "Installing gcc, golang, electric-fence..."
-apt-get install -y gcc golang electric-fence
-
 echo "Creating folder /etc/xcompile"
 mkdir /etc/xcompile > /dev/null 2>&1
 
