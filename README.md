@@ -10,9 +10,11 @@ https://github.com/jgamblin/Mirai-Source-Code/blob/master/ForumPost.md
 3. VMware-station or vbox.
 
 ## Install Requirements
+```bash
 dnf install git gcc golang ElectricFence mysql mariadb-server mariadb-common bind bind-utils
-
+```
 ## Download the Mirai code
+```bash
 git clone https://github.com/jgamblin/Mirai-Source-Code.git
 
 wget https://www.uclibc.org/downloads/binaries/0.9.30.1/cross-compiler-armv4l.tar.bz2
@@ -46,10 +48,11 @@ mv cross-compiler-powerpc powerpc
 mv cross-compiler-sh4 sh4
 mv cross-compiler-sparc sparc
 mv cross-compiler-armv6l armv6l
-
+```
 ## make go home DIR
+```bash
 mkdir ~/go
-
+```
 ## adding xcompile path in .bashrc
 ```bash
 export PATH=$PATH:/etc/xcompile/armv4l/bin
@@ -67,8 +70,9 @@ export PATH=$PATH:/usr/local/go/bin
 export GOPATH=$HOME/go
 ```
 ## source .bashrc
+```bash
 source ~/.bashrc
-
+```
 ## GoLang Drivers & building debug/release
 ### Very self explanitory
 ```bash
