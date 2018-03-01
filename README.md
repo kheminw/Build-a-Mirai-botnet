@@ -51,6 +51,7 @@ mv cross-compiler-armv6l armv6l
 mkdir ~/go
 
 ## adding xcompile path in .bashrc
+```bash
 export PATH=$PATH:/etc/xcompile/armv4l/bin
 export PATH=$PATH:/etc/xcompile/armv6l/bin
 export PATH=$PATH:/etc/xcompile/i586/bin
@@ -64,12 +65,13 @@ export PATH=$PATH:/etc/xcompile/sparc/bin
 export PATH=$PATH:/etc/xcompile/armv6l/bin
 export PATH=$PATH:/usr/local/go/bin
 export GOPATH=$HOME/go
-
+```
 ## source .bashrc
 source ~/.bashrc
 
 ## GoLang Drivers & building debug/release
-## Very self explanitory
-
+### Very self explanitory
+```bash
 go get github.com/go-sql-driver/mysql
 go get github.com/mattn/go-shellword
+```
