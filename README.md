@@ -12,6 +12,8 @@ https://github.com/jgamblin/Mirai-Source-Code/blob/master/ForumPost.md
 ## Install Requirements
 ```bash
 dnf install git gcc golang ElectricFence mysql mariadb-server mariadb-common bind bind-utils
+dnf groupinstall "Development Tools" -y
+dnf install gmp-devel -y
 ```
 ## Download the Mirai code
 ```bash
