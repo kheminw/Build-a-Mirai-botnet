@@ -9,13 +9,87 @@ https://github.com/jgamblin/Mirai-Source-Code/blob/master/ForumPost.md
 2. Network capabilities.
 3. VMware-station or vbox.
 
-## Install Requirements
+### Install Requirements
 ```bash
 dnf install git gcc golang ElectricFence mysql mariadb-server mariadb-common bind bind-utils
 dnf groupinstall "Development Tools" -y
 dnf install gmp-devel -y
 ```
-## Download the Mirai code
+
+## Section 1 Setup dns server
+### 1-1 Stop Dns server
+systemctl stop named
+### 1-2 Edit /etc/named.conf
+```conf
+acl "trusted" {
+	192.168.241.1; // Self DNS-server ip
+};
+options {
+	listen-on port 53 { any; };
+	listen-on-v6 port 53 { any; };
+	directory 	"/var/named";
+	dump-file 	"/var/named/data/cache_dump.db";
+	statistics-file "/var/named/data/named_stats.txt";
+	memstatistics-file "/var/named/data/named_mem_stats.txt";
+	allow-query     { any; };
+
+	/* 
+	 - If you are building an AUTHORITATIVE DNS server, do NOT enable recursion.
+	 - If you are building a RECURSIVE (caching) DNS server, you need to enable 
+	   recursion. 
+	 - If your recursive DNS server has a public IP address, you MUST enable access 
+	   control to limit queries to your legitimate users. Failing to do so will
+	   cause your server to become part of large scale DNS amplification 
+	   attacks. Implementing BCP38 within your network would greatly
+	   reduce such attack surface 
+	*/
+	recursion yes;
+
+	dnssec-enable yes;
+	dnssec-validation yes;
+
+	managed-keys-directory "/var/named/dynamic";
+
+	pid-file "/run/named/named.pid";
+	session-keyfile "/run/named/session.key";
+
+	/* https://fedoraproject.org/wiki/Changes/CryptoPolicy */
+	include "/etc/crypto-policies/back-ends/bind.config";
+};
+
+logging {
+        channel default_debug {
+                file "data/named.run";
+                severity dynamic;
+        };
+};
+
+zone "." IN {
+	type hint;
+	file "named.ca";
+};
+
+include "/etc/named.rfc1912.zones";
+include "/etc/named.root.key";
+
+```
+### 1-3 Edit /etc/named.rfc1912.zones
+```conf
+zone "changeme.com" IN {
+	type master;
+	file "changeme.com";
+	allow-update { none; };
+};
+```
+### 1-4 [Finally] Restart named
+```bash
+systemctl restart named
+```
+
+## Section 2 Setup mariadb-server mirai databases
+
+## Section 1 Compile Mirai code
+### 1-1 Download the Mirai code
 ```bash
 git clone https://github.com/jgamblin/Mirai-Source-Code.git
 
@@ -51,11 +125,11 @@ mv cross-compiler-sh4 sh4
 mv cross-compiler-sparc sparc
 mv cross-compiler-armv6l armv6l
 ```
-## make go home DIR
+### 1-2 Make go home DIR
 ```bash
 mkdir ~/go
 ```
-## adding xcompile path in .bashrc
+### 1-3 Adding xcompile path in .bashrc
 ```bash
 export PATH=$PATH:/etc/xcompile/armv4l/bin
 export PATH=$PATH:/etc/xcompile/armv6l/bin
@@ -71,12 +145,11 @@ export PATH=$PATH:/etc/xcompile/armv6l/bin
 export PATH=$PATH:/usr/local/go/bin
 export GOPATH=$HOME/go
 ```
-## source .bashrc
+*source .bashrc*
 ```bash
 source ~/.bashrc
 ```
-## GoLang Drivers & building debug/release
-### Very self explanitory
+### 1-4 Install GoLang Drivers
 ```bash
 go get github.com/go-sql-driver/mysql
 go get github.com/mattn/go-shellword
