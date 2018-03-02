@@ -207,6 +207,8 @@ telnet 127.0.0.1
 ```
 ### 4-3 Run ./mirai/debug/mirai.dbg as root on VM-PCs
 *VM-PC1:192.168.241.108*
+
 *VM-PC2:192.168.241.109*
+
 *VM-PC3:192.168.241.110*
 
