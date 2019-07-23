@@ -18,7 +18,8 @@ dnf install gmp-devel -y
 
 ## Section 1 Setup dns server
 ### 1-1 Stop Dns server
-```bash systemctl stop named
+```bash 
+sudo systemctl stop named
 ```
 ### 1-2 Edit /etc/named.conf
 ```conf
