@@ -17,6 +17,7 @@
 #include <arpa/inet.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <math.h>
 #include <pthread.h>
 #include <sys/queue.h>
 #include <sys/epoll.h>

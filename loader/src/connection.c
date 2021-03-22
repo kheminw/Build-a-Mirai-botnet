@@ -94,7 +94,10 @@ int connection_consume_iacs(struct connection *conn)
         int i;
 
         if (*ptr != 0xff)
+        {
+            if (connection_consume_login_prompt(conn) > 0) return 1;
             break;
+        }
         else if (*ptr == 0xff)
         {
             if (!can_consume(conn, ptr, 1))
@@ -415,6 +418,8 @@ int connection_consume_written_dirs(struct connection *conn)
 {
     int end_pos, i, offset, total_offset = 0;
     BOOL found_writeable = FALSE;
+
+    printf("[FD%d] check writable\n", conn->fd);
 
     if ((end_pos = util_memsearch(conn->rdbuf, conn->rdbuf_pos, TOKEN_RESPONSE, strlen(TOKEN_RESPONSE))) == -1)
         return 0;

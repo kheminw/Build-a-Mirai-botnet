@@ -1,6 +1,10 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <ctype.h>
+#include <arpa/inet.h>
 
 #define STDIN   0
 #define STDOUT  1

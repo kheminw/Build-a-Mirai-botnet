@@ -276,13 +276,13 @@ static void handle_event(struct server_worker *wrker, struct epoll_event *ev)
             while (TRUE)
             {
                 int consumed;
-
+                printf("[FD%d] Connection State %d\n", conn->fd, conn->state_telnet);
                 switch (conn->state_telnet)
                 {
                     case TELNET_READ_IACS:
+                        // might get served the login prompt directly without having to deal with iacs
                         consumed = connection_consume_iacs(conn);
-                        if (consumed)
-                            conn->state_telnet = TELNET_USER_PROMPT;
+                        if (consumed) conn->state_telnet = TELNET_USER_PROMPT;
                         break;
                     case TELNET_USER_PROMPT:
                         consumed = connection_consume_login_prompt(conn);
@@ -293,6 +293,10 @@ static void handle_event(struct server_worker *wrker, struct epoll_event *ev)
                             conn->output_buffer.deadline = time(NULL) + 1;
                             conn->state_telnet = TELNET_PASS_PROMPT;
                         }
+                        else if (*(conn->rdbuf) == 0xff) {
+                            consumed = connection_consume_iacs(conn);
+                            if (consumed) conn->state_telnet = TELNET_USER_PROMPT;
+                        }
                         break;
                     case TELNET_PASS_PROMPT:
                         consumed = connection_consume_password_prompt(conn);
@@ -300,6 +304,9 @@ static void handle_event(struct server_worker *wrker, struct epoll_event *ev)
                         {
                             util_sockprintf(conn->fd, "%s", conn->info.pass);
                             strcpy(conn->output_buffer.data, "\r\n");
+                            sleep(1);
+                            char tmp1[] = {0xff, 0xfe, 0x01};
+                            util_sockprintf(conn->fd, "%s", tmp1);
                             conn->output_buffer.deadline = time(NULL) + 1;
                             conn->state_telnet = TELNET_WAITPASS_PROMPT; // At the very least it will print SOMETHING
                         }
